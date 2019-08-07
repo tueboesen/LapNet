@@ -1,0 +1,47 @@
+module PrintLog
+
+import Suppressor.@suppress
+
+export @printlog, @noprintlog
+
+"""
+    @printlog "file.log"
+Enable `printlog`.
+Outputs of `print` and `println` will be logged into file `file.log`.
+It will create the log file if it does not exist.
+All prints will be appended to the end of the file.
+    @printlog "file.log" silent
+Silent mode.
+Do not output `info`.
+"""
+macro printlog(file, silent=false)
+    @eval begin
+        import Base.println, Base.print, Suppressor.@suppress
+        @suppress Base.println(xs...) =
+            open(f -> (println(f, xs...); println(stdout, xs...)), $file, "a")
+        @suppress Base.print(xs...) =
+            open(f -> (print(f, xs...); print(stdout, xs...)), $file, "a")
+    end
+#    silent != :silent &&
+#        info("`print` and `println` will be logged into file `$file`")
+    nothing
+end
+
+"""
+    @noprintlog
+Disable `printlog`.
+    @noprintlog silent
+Silent mode.
+"""
+macro noprintlog(silent=false)
+    @eval begin
+        import Base.println, Base.print, Suppressor.@suppress
+        @suppress Base.println(xs...) = println(stdout, xs...)
+        @suppress Base.print(xs...) = print(stdout, xs...)
+    end
+#    silent != :silent &&
+#        info("`print` and `println` are resumed.")
+    nothing
+end
+
+end # module
