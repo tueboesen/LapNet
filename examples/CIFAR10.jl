@@ -43,7 +43,7 @@ function main(logfile,α,η,epochs,n_known_of_each)
   iik=Array{Int64,1}(undef,0)
   _,v=Data.InitDataset("validation",X_val,C_val,ik=iik,batch_size=batch_size,batch_shuffle=batch_shuffle)
 
-  #Create the network - here we have WideNet28-2
+  #Create the network - here we have WideNet28-2 (Actually it isn't quite WideNet28-2, the batchnorm should come before the convolution in each layer )
   forward = Chain(
     Conv((3,3), 3=>16,pad=1),BatchNorm(16, σ),
     IdentitySkipConv(Chain(Conv((3,3), 16=>32,pad=1),BatchNorm(32, σ),Conv((3,3), 32=>32,pad=1)),dt,Conv((1,1),16=>32)),
