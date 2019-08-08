@@ -16,7 +16,7 @@ using CuArrays
 using .Data
 using .PrintLog
 
-function main(logfile,α,η,epochs,n_known_of_each)
+function main(logfile,α,η,epochs,n_known_of_each,io)
   @printlog logfile #Make a logfile
   device = cpu
   debug = true
@@ -43,20 +43,20 @@ function main(logfile,α,η,epochs,n_known_of_each)
   iik=Array{Int64,1}(undef,0)
   _,v=Data.InitDataset("validation",X_val,C_val,ik=iik,batch_size=batch_size,batch_shuffle=batch_shuffle)
 
-  #Create the network - here we have WideNet28-2 (Actually it isn't quite WideNet28-2, the batchnorm should come before the convolution in each layer )
+  #Create the network - here we have WideNet28-2
   layer1 = Conv((3,3), 3=>16,pad=1)
   layer2 = Chain(BatchNorm(16, σ),IdentitySkipConv(Chain(Conv((3,3), 16=>32,pad=1),BatchNorm(32, σ),Conv((3,3), 32=>32,pad=1)),dt,Conv((1,1),16=>32)))
-  layer3 = Chain(BatchNorm(32, σ),IdentitySkip(Chain(Conv((3,3), 32=>32,pad=1),BatchNorm(32, σ),Conv((3,3), 32=>32,pad=1)),dt)
-  layer4 = Chain(BatchNorm(32, σ),IdentitySkip(Chain(Conv((3,3), 32=>32,pad=1),BatchNorm(32, σ),Conv((3,3), 32=>32,pad=1)),dt)
-  layer5 = Chain(BatchNorm(32, σ),IdentitySkip(Chain(Conv((3,3), 32=>32,pad=1),BatchNorm(32, σ),Conv((3,3), 32=>32,pad=1)),dt)
+  layer3 = Chain(BatchNorm(32, σ),IdentitySkip(Chain(Conv((3,3), 32=>32,pad=1),BatchNorm(32, σ),Conv((3,3), 32=>32,pad=1)),dt))
+  layer4 = Chain(BatchNorm(32, σ),IdentitySkip(Chain(Conv((3,3), 32=>32,pad=1),BatchNorm(32, σ),Conv((3,3), 32=>32,pad=1)),dt))
+  layer5 = Chain(BatchNorm(32, σ),IdentitySkip(Chain(Conv((3,3), 32=>32,pad=1),BatchNorm(32, σ),Conv((3,3), 32=>32,pad=1)),dt))
   layer6 = Chain(BatchNorm(32, σ),IdentitySkipConv(Chain(Conv((3,3), 32=>64,pad=1,stride=2),BatchNorm(64, σ),Conv((3,3), 64=>64,pad=1)),dt,Conv((1,1),32=>64,stride=2)))
-  layer7 = Chain(BatchNorm(64, σ),IdentitySkip(Chain(Conv((3,3), 64=>64,pad=1),BatchNorm(64, σ),Conv((3,3), 64=>64,pad=1)),dt)
-  layer8 = Chain(BatchNorm(64, σ),IdentitySkip(Chain(Conv((3,3), 64=>64,pad=1),BatchNorm(64, σ),Conv((3,3), 64=>64,pad=1)),dt)
-  layer9 = Chain(BatchNorm(64, σ),IdentitySkip(Chain(Conv((3,3), 64=>64,pad=1),BatchNorm(64, σ),Conv((3,3), 64=>64,pad=1)),dt)
+  layer7 = Chain(BatchNorm(64, σ),IdentitySkip(Chain(Conv((3,3), 64=>64,pad=1),BatchNorm(64, σ),Conv((3,3), 64=>64,pad=1)),dt))
+  layer8 = Chain(BatchNorm(64, σ),IdentitySkip(Chain(Conv((3,3), 64=>64,pad=1),BatchNorm(64, σ),Conv((3,3), 64=>64,pad=1)),dt))
+  layer9 = Chain(BatchNorm(64, σ),IdentitySkip(Chain(Conv((3,3), 64=>64,pad=1),BatchNorm(64, σ),Conv((3,3), 64=>64,pad=1)),dt))
   layer10 = Chain(BatchNorm(64, σ),IdentitySkipConv(Chain(Conv((3,3), 64=>128,pad=1,stride=2),BatchNorm(128, σ),Conv((3,3), 128=>128,pad=1)),dt,Conv((1,1),64=>128,stride=2)))
-  layer11 = Chain(BatchNorm(128, σ),IdentitySkip(Chain(Conv((3,3), 128=>128,pad=1),BatchNorm(128, σ),Conv((3,3), 128=>128,pad=1)),dt)
-  layer12 = Chain(BatchNorm(128, σ),IdentitySkip(Chain(Conv((3,3), 128=>128,pad=1),BatchNorm(128, σ),Conv((3,3), 128=>128,pad=1)),dt)
-  layer13 = Chain(BatchNorm(128, σ),IdentitySkip(Chain(Conv((3,3), 128=>128,pad=1),BatchNorm(128, σ),Conv((3,3), 128=>128,pad=1)),dt)
+  layer11 = Chain(BatchNorm(128, σ),IdentitySkip(Chain(Conv((3,3), 128=>128,pad=1),BatchNorm(128, σ),Conv((3,3), 128=>128,pad=1)),dt))
+  layer12 = Chain(BatchNorm(128, σ),IdentitySkip(Chain(Conv((3,3), 128=>128,pad=1),BatchNorm(128, σ),Conv((3,3), 128=>128,pad=1)),dt))
+  layer13 = Chain(BatchNorm(128, σ),IdentitySkip(Chain(Conv((3,3), 128=>128,pad=1),BatchNorm(128, σ),Conv((3,3), 128=>128,pad=1)),dt))
   layer14 = Chain(BatchNorm(128, σ),MeanPool((8,8)),x -> dropdims(x,dims=(1,2)))
 
   forward = Chain(layer1,layer2,layer3,layer4,layer5,layer6,layer7,layer8,layer9,layer10,layer11,layer12,layer13,layer14) |> device
@@ -111,7 +111,7 @@ for n_known_of_each in [2, 20, 50, 100, 200, 400]
     io = open(logfile, "w+")
     logger = SimpleLogger(io)
     global_logger(logger)
-    main(logfile,α,η,epoch,n_known_of_each)
+    main(logfile,α,η,epoch,n_known_of_each,io)
     flush(io)
     close(io)
   end
