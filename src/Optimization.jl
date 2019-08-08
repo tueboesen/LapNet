@@ -27,7 +27,6 @@ module Optimization
  function training!(forward,classify,optimizer,epochs,α,trainingset,validationset,batch_size,reg_batch_size,batch_shuffle,laplace_mode,track_laplacian)
     t=trainingset
     v=validationset
-    println(typeof(t.x))
     loss_min = Inf
     best_epoch = 0
     time_spent = 0
@@ -46,7 +45,6 @@ module Optimization
         cBest = ""
         if α != 0 #Compute regularization
             reg_batch, _ = Misc.sample_wo_repl!(vcat(t.ik,t.iu),reg_batch_size,batch_shuffle)
-            # ylreg = forward_w_hist(t.x[:,reg_batch])
             L0 = Regularization.Laplacian(t.x[..,reg_batch],track=track_laplacian)
         end
         ik=copy(t.ik)
@@ -59,7 +57,6 @@ module Optimization
             y = forward(t.x[..,batch])
             u = classify(y)
             misfit_j = Flux.crossentropy(u, t.cp[:,batch])
-            # misfit_j = Statistics.mean(crossentropy(u, t.cp[:,batch]))
             t.cgp[:,batch] = Tracker.data(u)
             if α != 0
                 ylreg = forward_w_hist(t.x[..,reg_batch],forward)
