@@ -22,7 +22,7 @@ module LoadCustomLayers
      inner
      dt
   end
-  (m::IdentitySkip)(x) = m.dt .* m.inner(x) .+ x
+  (m::IdentitySkip)(x) = oftype(Tracker.data(x[1]),m.dt) .* m.inner(x) .+ x
   @Flux.treelike IdentitySkip
 
   struct IdentitySkipConv
@@ -32,15 +32,16 @@ module LoadCustomLayers
   end
   function (m::IdentitySkipConv)(x::AbstractArray)
       dt,inner,outer = m.dt, m.inner, m.outer
-      # println(typeof(dt))
       # println(typeof(Tracker.data(x)))
       # println(typeof(inner(x)))
       # println(typeof(outer(x)))
       # println(typeof(dt*x))
+      # println(typeof(dt))
       # println(typeof(Tracker.data(x[1])))
-      # println(typeof(oftype(dt,Tracker.data(x[1]))))
+      # println(typeof(oftype(Tracker.data(x[1]),dt)))
+      # println(typeof(convert(typeof(Tracker.data(x[1])), dt)))
       # println(typeof(oftype(dt,Tracker.data(x[1])) .* inner(x)))
-      return dt .* inner(x) .+ outer(x)
+      return oftype(Tracker.data(x[1]),dt) .* inner(x) .+ outer(x)
   end
   # (m::IdentitySkipConv)(x) = m.dt .* m.inner(x) .+ m.outer(x)
   @Flux.treelike IdentitySkipConv

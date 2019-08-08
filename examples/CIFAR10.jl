@@ -3,7 +3,6 @@ include("./../src/nn.jl")
 include("./../src/Dataset.jl")
 include("./../src/Optimization.jl")
 include("./../src/Vizualize.jl")
-include("./../src/PrintLog.jl")
 import .LoadCustomLayers.IdentitySkip
 import .LoadCustomLayers.IdentitySkipConv
 import .LoadCustomLayers.MyDense
@@ -16,7 +15,6 @@ using CuArrays
 using .Data
 
 function main(logfile,α,η,epochs,n_known_of_each,io)
-  @printlog logfile #Make a logfile
   device = cpu
   debug = true
   σ = relu
@@ -41,6 +39,7 @@ function main(logfile,α,η,epochs,n_known_of_each,io)
   d,t=Data.InitDataset("training",X_train,C_train,ik=ik,batch_size=batch_size,batch_shuffle=batch_shuffle)
   iik=Array{Int64,1}(undef,0)
   _,v=Data.InitDataset("validation",X_val,C_val,ik=iik,batch_size=batch_size,batch_shuffle=batch_shuffle)
+
 
   #Create the network - here we have WideNet28-2
   layer1 = Conv((3,3), 3=>16,pad=1)
@@ -88,14 +87,15 @@ function main(logfile,α,η,epochs,n_known_of_each,io)
   @info("optimizer=",optimizer)
   @info("number of parameters = ",nparams)
   flush(io)
+
   best_epoch,loss,time_spent=Optimization.training!(forward,classify,optimizer,epochs,α,t,v,batch_size,reg_batch_size,batch_shuffle,laplace_mode,track_laplacian)
 
+  #This last step need to be split up in smaller batches or the mode needs to be changed to testing instead of training. Right now it runs out of memory which is why it takes forever.
   y=forward(v.x)
   u=classify(y)
   cg=Data.maxprob(Tracker.data(u))
   acc_val = Statistics.mean(cg .== v.c)*100\
   @info("accuracy of validation data= ",acc_val)
-  @noprintlog
 end
 
 

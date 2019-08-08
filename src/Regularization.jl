@@ -30,7 +30,8 @@ module Regularization
       n = size(x,nd)          #number of data points
       I=zeros(Int64,knn,n)
       J=zeros(Int64,knn,n)
-      di = zeros(Float64,n,knn)
+      println("adj",typeof(x[1]))
+      di = zeros(typeof(x[1]),n,knn)
       for i=1:n
           r = x .- x[..,i]
           d=sumdrop(r.*r , nd)
@@ -39,7 +40,7 @@ module Regularization
           I[:,i] = i.*ones(knn,1)
           J[:,i] = idx[1:knn]
       end
-      A = SparseArrays.sparse(I[:],J[:],ones(Float64,length(J[:]),1)[:],n,n)
+      A = SparseArrays.sparse(I[:],J[:],ones(typeof(x[1]),length(J[:]),1)[:],n,n)
       A = A+A'  # Warning this is not a normal adjencymatrix, since we have values that are 2 instead of 1 in it as well!
       return A, Statistics.median(di)
     end

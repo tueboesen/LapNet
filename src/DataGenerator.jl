@@ -37,7 +37,7 @@ module DataGenerators
             idx,_=sample_wo_repl!(xx,ntrain,shuffle)
             C_train=[train[i].ground_truth.class for i in idx]
             X = [getarray(train[i].img) for i in idx]
-            X_train = Array{Float64}(undef, 32,32,3,ntrain)
+            X_train = Array{Float32}(undef, 32,32,3,ntrain)
             for (i,xi) in enumerate(X)
                 X_train[:,:,:,i] = xi
             end
@@ -49,7 +49,7 @@ module DataGenerators
             idx,_=sample_wo_repl!(xx,nval,shuffle)
             C_val=[val[i].ground_truth.class for i in idx]
             X = [getarray(val[i].img) for i in idx]
-            X_val = Array{Float64}(undef, 32,32,3,nval)
+            X_val = Array{Float32}(undef, 32,32,3,nval)
             for (i,xi) in enumerate(X)
                 X_val[:,:,:,i] = xi
             end

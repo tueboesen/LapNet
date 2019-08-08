@@ -48,7 +48,7 @@ module Optimization
         end
         ik=copy(t.ik)
         while true #Loop through all known labels
-            reg_j = 0.0
+            reg_j = oftype(Tracker.data(t.x[1]),0.0)
             batch, ik = Misc.sample_wo_repl!(ik,batch_size,batch_shuffle) # This will not work right now, what if batch is lar4ger than the samples
             if isempty(batch)
                 break
