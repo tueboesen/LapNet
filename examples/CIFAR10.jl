@@ -44,21 +44,22 @@ function main(logfile,α,η,epochs,n_known_of_each)
   _,v=Data.InitDataset("validation",X_val,C_val,ik=iik,batch_size=batch_size,batch_shuffle=batch_shuffle)
 
   #Create the network - here we have WideNet28-2 (Actually it isn't quite WideNet28-2, the batchnorm should come before the convolution in each layer )
-  forward = Chain(
-    Conv((3,3), 3=>16,pad=1),BatchNorm(16, σ),
-    IdentitySkipConv(Chain(Conv((3,3), 16=>32,pad=1),BatchNorm(32, σ),Conv((3,3), 32=>32,pad=1)),dt,Conv((1,1),16=>32)),
-    IdentitySkip(Chain(Conv((3,3), 32=>32,pad=1),BatchNorm(32, σ),Conv((3,3), 32=>32,pad=1)),dt),
-    IdentitySkip(Chain(Conv((3,3), 32=>32,pad=1),BatchNorm(32, σ),Conv((3,3), 32=>32,pad=1)),dt),
-    IdentitySkip(Chain(Conv((3,3), 32=>32,pad=1),BatchNorm(32, σ),Conv((3,3), 32=>32,pad=1)),dt),
-    IdentitySkipConv(Chain(Conv((3,3), 32=>64,pad=1,stride=2),BatchNorm(64, σ),Conv((3,3), 64=>64,pad=1)),dt,Conv((1,1),32=>64,stride=2)),
-    IdentitySkip(Chain(Conv((3,3), 64=>64,pad=1),BatchNorm(64, σ),Conv((3,3), 64=>64,pad=1)),dt),
-    IdentitySkip(Chain(Conv((3,3), 64=>64,pad=1),BatchNorm(64, σ),Conv((3,3), 64=>64,pad=1)),dt),
-    IdentitySkip(Chain(Conv((3,3), 64=>64,pad=1),BatchNorm(64, σ),Conv((3,3), 64=>64,pad=1)),dt),
-    IdentitySkipConv(Chain(Conv((3,3), 64=>128,pad=1,stride=2),BatchNorm(128, σ),Conv((3,3), 128=>128,pad=1)),dt,Conv((1,1),64=>128,stride=2)),
-    IdentitySkip(Chain(Conv((3,3), 128=>128,pad=1),BatchNorm(128, σ),Conv((3,3), 128=>128,pad=1)),dt),
-    IdentitySkip(Chain(Conv((3,3), 128=>128,pad=1),BatchNorm(128, σ),Conv((3,3), 128=>128,pad=1)),dt),
-    IdentitySkip(Chain(Conv((3,3), 128=>128,pad=1),BatchNorm(128, σ),Conv((3,3), 128=>128,pad=1)),dt),
-    BatchNorm(128, σ),MeanPool((8,8)),x -> dropdims(x,dims=(1,2))) |> device
+  layer1 = Conv((3,3), 3=>16,pad=1)
+  layer2 = Chain(BatchNorm(16, σ),IdentitySkipConv(Chain(Conv((3,3), 16=>32,pad=1),BatchNorm(32, σ),Conv((3,3), 32=>32,pad=1)),dt,Conv((1,1),16=>32)))
+  layer3 = Chain(BatchNorm(32, σ),IdentitySkip(Chain(Conv((3,3), 32=>32,pad=1),BatchNorm(32, σ),Conv((3,3), 32=>32,pad=1)),dt)
+  layer4 = Chain(BatchNorm(32, σ),IdentitySkip(Chain(Conv((3,3), 32=>32,pad=1),BatchNorm(32, σ),Conv((3,3), 32=>32,pad=1)),dt)
+  layer5 = Chain(BatchNorm(32, σ),IdentitySkip(Chain(Conv((3,3), 32=>32,pad=1),BatchNorm(32, σ),Conv((3,3), 32=>32,pad=1)),dt)
+  layer6 = Chain(BatchNorm(32, σ),IdentitySkipConv(Chain(Conv((3,3), 32=>64,pad=1,stride=2),BatchNorm(64, σ),Conv((3,3), 64=>64,pad=1)),dt,Conv((1,1),32=>64,stride=2)))
+  layer7 = Chain(BatchNorm(64, σ),IdentitySkip(Chain(Conv((3,3), 64=>64,pad=1),BatchNorm(64, σ),Conv((3,3), 64=>64,pad=1)),dt)
+  layer8 = Chain(BatchNorm(64, σ),IdentitySkip(Chain(Conv((3,3), 64=>64,pad=1),BatchNorm(64, σ),Conv((3,3), 64=>64,pad=1)),dt)
+  layer9 = Chain(BatchNorm(64, σ),IdentitySkip(Chain(Conv((3,3), 64=>64,pad=1),BatchNorm(64, σ),Conv((3,3), 64=>64,pad=1)),dt)
+  layer10 = Chain(BatchNorm(64, σ),IdentitySkipConv(Chain(Conv((3,3), 64=>128,pad=1,stride=2),BatchNorm(128, σ),Conv((3,3), 128=>128,pad=1)),dt,Conv((1,1),64=>128,stride=2)))
+  layer11 = Chain(BatchNorm(128, σ),IdentitySkip(Chain(Conv((3,3), 128=>128,pad=1),BatchNorm(128, σ),Conv((3,3), 128=>128,pad=1)),dt)
+  layer12 = Chain(BatchNorm(128, σ),IdentitySkip(Chain(Conv((3,3), 128=>128,pad=1),BatchNorm(128, σ),Conv((3,3), 128=>128,pad=1)),dt)
+  layer13 = Chain(BatchNorm(128, σ),IdentitySkip(Chain(Conv((3,3), 128=>128,pad=1),BatchNorm(128, σ),Conv((3,3), 128=>128,pad=1)),dt)
+  layer14 = Chain(BatchNorm(128, σ),MeanPool((8,8)),x -> dropdims(x,dims=(1,2)))
+
+  forward = Chain(layer1,layer2,layer3,layer4,layer5,layer6,layer7,layer8,layer9,layer10,layer11,layer12,layer13,layer14) |> device
 
   classify = Chain(
     Dense(128,10),softmax) |> device
@@ -87,7 +88,7 @@ function main(logfile,α,η,epochs,n_known_of_each)
   @info("σ=",σ)
   @info("optimizer=",optimizer)
   @info("number of parameters = ",nparams)
-
+  flush(io)
   best_epoch,loss,time_spent=Optimization.training!(forward,classify,optimizer,epochs,α,t,v,batch_size,reg_batch_size,batch_shuffle,laplace_mode,track_laplacian)
 
   y=forward(v.x)
@@ -105,7 +106,7 @@ epoch = 50
 η = 0.1
 using Logging
 for n_known_of_each in [2, 20, 50, 100, 200, 400]
-  for α in [0, 0.5]
+  for α in [0,0.5]
     logfile = string(α,"_",n_known_of_each,".log")
     io = open(logfile, "w+")
     logger = SimpleLogger(io)
