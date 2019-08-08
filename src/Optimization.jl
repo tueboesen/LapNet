@@ -10,7 +10,6 @@ module Optimization
     using Statistics
     using .Data
     using EllipsisNotation
-    using Traceur
 
 
     function forward_w_hist(X,chain) # TODO - This should overload Chain instead

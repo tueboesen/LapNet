@@ -14,7 +14,6 @@ using Flux.Tracker
 using Random
 using CuArrays
 using .Data
-using .PrintLog
 
 function main(logfile,α,η,epochs,n_known_of_each,io)
   @printlog logfile #Make a logfile
