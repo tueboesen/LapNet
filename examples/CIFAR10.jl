@@ -20,8 +20,8 @@ function main(logfile,α,η,epochs,n_known_of_each,io)
   σ = relu
   dt = 0.1
   batch_size = 200
-  reg_batch_size = 1000
-  laplace_mode = 1
+  reg_batch_size = 500
+  laplace_mode = 0
   batch_shuffle = true
   track_laplacian = false
   ntrain = 4000
@@ -56,7 +56,8 @@ function main(logfile,α,η,epochs,n_known_of_each,io)
   layer12 = Chain(BatchNorm(128, σ),IdentitySkip(Chain(Conv((3,3), 128=>128,pad=1),BatchNorm(128, σ),Conv((3,3), 128=>128,pad=1)),dt))
   layer13 = Chain(BatchNorm(128, σ),IdentitySkip(Chain(Conv((3,3), 128=>128,pad=1),BatchNorm(128, σ),Conv((3,3), 128=>128,pad=1)),dt))
   layer14 = Chain(BatchNorm(128, σ),MeanPool((8,8)),x -> dropdims(x,dims=(1,2)))
-
+  #TODO consider how each layer gets regularization through velocity fields, does that make sense since they aren't pure residual layers, also some of them are not even close to residual layers, should these layers just not have regularization?
+  #TODO perhaps create a variable that determines for each layer whether it should be regularized. Is it a problem if not all layers are regularized?
   forward = Chain(layer1,layer2,layer3,layer4,layer5,layer6,layer7,layer8,layer9,layer10,layer11,layer12,layer13,layer14) |> device
 
   classify = Chain(
@@ -91,10 +92,17 @@ function main(logfile,α,η,epochs,n_known_of_each,io)
   best_epoch,loss,time_spent=Optimization.training!(forward,classify,optimizer,epochs,α,t,v,batch_size,reg_batch_size,batch_shuffle,laplace_mode,track_laplacian)
 
   #This last step need to be split up in smaller batches or the mode needs to be changed to testing instead of training. Right now it runs out of memory which is why it takes forever.
-  y=forward(v.x)
-  u=classify(y)
-  cg=Data.maxprob(Tracker.data(u))
-  acc_val = Statistics.mean(cg .== v.c)*100\
+  #TODO put this in a clean function that runs tests.
+  # model = Flux.mapleaves(Flux.data, model) this is how it is done according to https://discourse.julialang.org/t/untracking-a-flux-model/24811/2
+
+  nhits = 0
+  for i in partition(1:nval, 400)
+    y=forward(v.x[..,i])
+    u=classify(y)
+    cg=Data.maxprob(Tracker.data(u))
+    nhits =+ sum(maxprob(t.cp[:,i]) .== maxprob(Tracker.data(u)))
+  end
+  acc_val = nhits/nval*100
   @info("accuracy of validation data= ",acc_val)
 end
 
@@ -105,7 +113,7 @@ epoch = 50
 η = 0.1
 using Logging
 for n_known_of_each in [2, 20, 50, 100, 200, 400]
-  for α in [0,0.5]
+  for α in [0.5,0]
     logfile = string(α,"_",n_known_of_each,".log")
     io = open(logfile, "w+")
     logger = SimpleLogger(io)

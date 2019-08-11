@@ -25,13 +25,11 @@ module Regularization
     end
 
     function AdjacencyMatrix_(x;knn=9)
-      println(typeof(x))
       nd = ndims(x)           #Number of dimensions
       n = size(x,nd)          #number of data points
       I=zeros(Int64,knn,n)
       J=zeros(Int64,knn,n)
-      println("adj",typeof(x[1]))
-      di = zeros(typeof(x[1]),n,knn)
+      di = zeros(typeof(x[1]),n,knn)  #TODO Fix all cases like this to instead use eltype.
       for i=1:n
           r = x .- x[..,i]
           d=sumdrop(r.*r , nd)
@@ -88,9 +86,13 @@ module Regularization
     function Compute_Regularization(yl,L0)
         reg = 0
         n = size(L0,1)
+        println("L0",typeof(L0))
+        println("L0 size",size(L0))
+        println("L0 nnz",nnz(L0))
         for layer in yl
+            println("layer",typeof(layer))
             layer_flat=reshape(layer, :,n)
-            reg += tr(layer*L0*transpose(layer))
+            reg += tr(layer_flat*L0*transpose(layer_flat))
         end
         return reg
     end
@@ -99,8 +101,12 @@ module Regularization
         reg = 0
         nl = length(yl)
         n = size(L0,1)
+        println("L0",typeof(L0))
+        println("Ln",typeof(Ln))
         for (i,layer) in enumerate(yl)
             Li = L0 * ((nl - i ) / (nl-1)) + Ln * ((i -1) / (nl-1))
+            println("layer",typeof(layer))
+            println("Li",typeof(Li))
             layer_flat=reshape(layer, :,n)
             reg += tr(layer_flat*Li*transpose(layer_flat))
         end
