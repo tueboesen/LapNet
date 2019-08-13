@@ -48,14 +48,14 @@ module Optimization
         end
         ik=copy(t.ik)
         while true #Loop through all known labels
-            println("data x, type: ",typeof(Tracker.data(t.x[1])))
+            # println("data x, type: ",typeof(Tracker.data(t.x[1])))
             reg_j = oftype(Tracker.data(t.x[1]),0.0)
             batch, ik = Misc.sample_wo_repl!(ik,batch_size,batch_shuffle) # This will not work right now, what if batch is lar4ger than the samples
             if isempty(batch)
                 break
             end
-            @time y = forward(t.x[..,batch])
-            @time u = classify(y)
+            y = forward(t.x[..,batch])
+            u = classify(y)
             misfit_j = Flux.crossentropy(u, t.cp[:,batch])
             t.cgp[:,batch] = Tracker.data(u)
             if α != 0
@@ -66,16 +66,16 @@ module Optimization
                 else
                     @time reg_j = Regularization.Compute_Regularization(ylreg,L0)
                 end
-                println(typeof(reg_j))
+                # println(typeof(reg_j))
                 reg_j = oftype(reg_j,α) * reg_j / oftype(reg_j,length(reg_batch))
             end
             loss_j = misfit_j + reg_j
             misfit += Tracker.data(misfit_j)
             reg += Tracker.data(reg_j)
             loss += Tracker.data(loss_j)
-            println(typeof(loss_j))
-            @time back!(loss_j)
-            @time optimizer()
+            # println(typeof(loss_j))
+            back!(loss_j)
+            optimizer()
         if loss < loss_min
             loss_min = loss
             cBest = '*'

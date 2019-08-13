@@ -13,6 +13,8 @@ using Flux.Tracker
 using Random
 using CuArrays
 using .Data
+using Base.Iterators: partition
+using EllipsisNotation
 
 function main(logfile,α,η,epochs,n_known_of_each,io)
   device = cpu
@@ -20,11 +22,11 @@ function main(logfile,α,η,epochs,n_known_of_each,io)
   σ = relu
   dt = 0.1
   batch_size = 200
-  reg_batch_size = 500
+  reg_batch_size = 5
   laplace_mode = 0
   batch_shuffle = true
   track_laplacian = false
-  ntrain = 4000
+  ntrain = 6000
   nval = 10000
   seed_number = 1234
 
@@ -34,7 +36,6 @@ function main(logfile,α,η,epochs,n_known_of_each,io)
 
   X_train,C_train,X_val,C_val = DataGenerators.cifar10(ntrain,nval,debug) |> device
   ik = DataGenerators.SelectKnownPoints(C_train,n_known_of_each=n_known_of_each)
-
   #Next load the data into the general structure that I want.
   d,t=Data.InitDataset("training",X_train,C_train,ik=ik,batch_size=batch_size,batch_shuffle=batch_shuffle)
   iik=Array{Int64,1}(undef,0)
@@ -63,10 +64,10 @@ function main(logfile,α,η,epochs,n_known_of_each,io)
   classify = Chain(
     Dense(128,10),softmax) |> device
 
-  loss(x,y) = sum(crossentropy(classify(forward(x)),y))
   ps=params(forward,classify)
-  # optimizer = SGD(ps,η)
-  optimizer = ADAM(ps,η)
+  loss(x,y) = sum(crossentropy(classify(forward(x)),y))
+  # optimizer = ADAM(ps,η)
+  optimizer = SGD(ps,η)
 
   nparams=sum(length(p) for p ∈ ps)
 
@@ -94,26 +95,32 @@ function main(logfile,α,η,epochs,n_known_of_each,io)
   #This last step need to be split up in smaller batches or the mode needs to be changed to testing instead of training. Right now it runs out of memory which is why it takes forever.
   #TODO put this in a clean function that runs tests.
   # model = Flux.mapleaves(Flux.data, model) this is how it is done according to https://discourse.julialang.org/t/untracking-a-flux-model/24811/2
-
   nhits = 0
-  for i in partition(1:nval, 400)
-    y=forward(v.x[..,i])
-    u=classify(y)
-    cg=Data.maxprob(Tracker.data(u))
-    nhits =+ sum(maxprob(t.cp[:,i]) .== maxprob(Tracker.data(u)))
+  forward_fixed = Flux.mapleaves(Flux.data, forward) #Fix the parameters after training
+  classify_fixed = Flux.mapleaves(Flux.data, classify) #Fix the parameters after training
+  for i in partition(1:nval, 10000)
+    y=forward_fixed(v.x[..,i])
+    u=classify_fixed(y)
+    # println("u",u)
+    cg=Data.maxprob(u)
+    nhits =+ sum(maxprob(v.cp[:,i]) .== cg)
   end
   acc_val = nhits/nval*100
   @info("accuracy of validation data= ",acc_val)
+  println("accuracy of validation data= ",acc_val)
 end
 
 
+empty!(LOAD_PATH)
+push!(LOAD_PATH, "@stdlib")
+push!(LOAD_PATH, "@")
 #This runs the code for various cases, unfortunately it is very slow at the moment, especially the last step where it compute the forward on all the validation data takes forever.
 #I think this last problem can be partially fixed by changing the network away from training mode at the end, might be faster then.
-epoch = 50
+epoch = 200
 η = 0.1
 using Logging
 for n_known_of_each in [2, 20, 50, 100, 200, 400]
-  for α in [0.5,0]
+  for α in [0]
     logfile = string(α,"_",n_known_of_each,".log")
     io = open(logfile, "w+")
     logger = SimpleLogger(io)
