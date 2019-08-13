@@ -110,10 +110,6 @@ function main(logfile,α,η,epochs,n_known_of_each,io)
   println("accuracy of validation data= ",acc_val)
 end
 
-
-empty!(LOAD_PATH)
-push!(LOAD_PATH, "@stdlib")
-push!(LOAD_PATH, "@")
 #This runs the code for various cases, unfortunately it is very slow at the moment, especially the last step where it compute the forward on all the validation data takes forever.
 #I think this last problem can be partially fixed by changing the network away from training mode at the end, might be faster then.
 epoch = 200
