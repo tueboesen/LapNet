@@ -17,7 +17,7 @@ using Base.Iterators: partition
 using EllipsisNotation
 
 function main(logfile,α,η,epochs,n_known_of_each,io)
-  device = cpu
+  device = gpu
   debug = true
   σ = relu
   dt = 0.1
@@ -37,9 +37,9 @@ function main(logfile,α,η,epochs,n_known_of_each,io)
   X_train,C_train,X_val,C_val = DataGenerators.cifar10(ntrain,nval,debug) |> device
   ik = DataGenerators.SelectKnownPoints(C_train,n_known_of_each=n_known_of_each)
   #Next load the data into the general structure that I want.
-  d,t=Data.InitDataset("training",X_train,C_train,ik=ik,batch_size=batch_size,batch_shuffle=batch_shuffle)
+  d,t=Data.InitDataset("training",X_train,C_train,ik=ik,batch_size=batch_size,batch_shuffle=batch_shuffle,device=device) |> device
   iik=Array{Int64,1}(undef,0)
-  _,v=Data.InitDataset("validation",X_val,C_val,ik=iik,batch_size=batch_size,batch_shuffle=batch_shuffle)
+  _,v=Data.InitDataset("validation",X_val,C_val,ik=iik,batch_size=batch_size,batch_shuffle=batch_shuffle,device=device) |> device
 
 
   #Create the network - here we have WideNet28-2
@@ -112,7 +112,7 @@ end
 
 #This runs the code for various cases, unfortunately it is very slow at the moment, especially the last step where it compute the forward on all the validation data takes forever.
 #I think this last problem can be partially fixed by changing the network away from training mode at the end, might be faster then.
-epoch = 200
+epoch = 20
 η = 0.1
 using Logging
 for n_known_of_each in [2, 20, 50, 100, 200, 400]

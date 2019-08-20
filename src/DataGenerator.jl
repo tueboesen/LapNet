@@ -57,7 +57,7 @@ module DataGenerators
         return X_train,C_train,X_val,C_val
     end
 
-    function SelectKnownPoints(C::Array{Int,1};n_known::Int=-1,n_known_of_each::Int=-1,nc::Int=-1)
+    function SelectKnownPoints(C::AbstractArray{<: Real,1};n_known::Int=-1,n_known_of_each::Int=-1,nc::Int=-1)
         if nc == -1
             nc = length(unique(C))
         end
@@ -70,9 +70,9 @@ module DataGenerators
             ik = Array{Int64,1}(undef,0)
             labels_found = zeros(nc)
             for (idx,ci) in enumerate(C)
-                if labels_found[ci] < n_known_of_each
+                if labels_found[Int(ci)] < n_known_of_each
                     ik = append!(ik, idx)
-                    labels_found[ci] += 1
+                    labels_found[Int(ci)] += 1
                 else
                     continue
                 end
