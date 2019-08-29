@@ -12,18 +12,39 @@ module Optimization
     using EllipsisNotation
 
 
-    function forward_w_hist(X,chain) # TODO - This should overload Chain instead
+    function forward_w_hist(X,chain,resnetlayers,laplacelayers) # TODO - This should overload Chain instead
+       #We assume that both laplacelayers and resnetlayers are ordered, if not this could be dangerous
        yl=[]
-       y=chain[1](X)
-       #push!(yl,y) Commented out because we want to skip the first layer in regularization
-       for i in range(2,stop=length(chain)-1) #removed last layer for wideNet28 as well, since this isn't a residual layer, and we do not want to compute laplacian based on it.
-         y=chain[i](y)
-         push!(yl,y)
+       vl=[]
+       println("resnetelayers",resnetlayers)
+       println("laplacelayers",laplacelayers)
+       if 0 in laplacelayers
+           push!(yl,X) #include input
        end
-       return yl
+       if 1 in resnetlayers
+           y=chain[1][1:end-1](X)
+           push!(vl,y[1]) #Only take the first component of the split, which should be F(x,θ)
+           y=chain[1][end](y)
+       else
+           y=chain[1](X)
+       end
+       if 1 in laplacelayers
+           push!(yl,y)
+       end
+       for i in range(2,stop=length(chain))
+         y=chain[i][1:end-1](y)
+         if i in resnetlayers
+             push!(vl,y[1])
+         end
+         y=chain[i][end](y)
+         if i in laplacelayers
+             push!(yl,y) #take the whole layer
+         end
+       end
+       return yl,vl
     end
 
- function training!(forward,classify,optimizer,epochs,α,trainingset,validationset,batch_size,reg_batch_size,batch_shuffle,laplace_mode,track_laplacian)
+ function training!(forward,classify,optimizer,epochs,α,trainingset,validationset,batch_size,reg_batch_size,batch_shuffle,laplace_mode,track_laplacian,laplacelayers,resnetlayers)
     t=trainingset
     v=validationset
     loss_min = Inf
@@ -44,7 +65,6 @@ module Optimization
         cBest = ""
         if α != 0 #Compute regularization
             reg_batch, _ = Misc.sample_wo_repl!(vcat(t.ik,t.iu),reg_batch_size,batch_shuffle)
-            @time L0 = Regularization.Laplacian(t.x[..,reg_batch],track=track_laplacian)
         end
         ik=copy(t.ik)
         while true #Loop through all known labels
@@ -59,13 +79,9 @@ module Optimization
             misfit_j = Flux.crossentropy(u, t.cp[:,batch])
             t.cgp[:,batch] = Tracker.data(u)
             if α != 0
-                @time ylreg = forward_w_hist(t.x[..,reg_batch],forward)
-                if laplace_mode != 0
-                    @time Ln = Regularization.Laplacian(ylreg,track=track_laplacian)
-                    @time reg_j = Regularization.Compute_Regularization(ylreg,L0,Ln)
-                else
-                    @time reg_j = Regularization.Compute_Regularization(ylreg,L0)
-                end
+                @time yl,vl = forward_w_hist(t.x[..,reg_batch],forward,resnetlayers,laplacelayers)
+                @time L = Regularization.Laplacian(yl,track=track_laplacian,laplacelayers)
+                @time reg_j = Regularization.Compute_Regularization(vl,L,resnetlayers,laplacelayers)
                 # println(typeof(reg_j))
                 reg_j = oftype(reg_j,α) * reg_j / oftype(reg_j,length(reg_batch))
             end

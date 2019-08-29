@@ -1,6 +1,6 @@
 module LoadCustomLayers
   using Flux
-  export MyDense, IdentitySkip, IdentitySkipConv
+  export MyDense, IdentitySkip, IdentitySkipConv, Split, SplitConv
   struct MyDense{F,S,T}
     W::S
     b::T
@@ -45,6 +45,35 @@ module LoadCustomLayers
   end
   # (m::IdentitySkipConv)(x) = m.dt .* m.inner(x) .+ m.outer(x)
   @Flux.treelike IdentitySkipConv
+
+  struct Split
+     inner
+     dt
+  end
+  (m::Split)(x) = (oftype(Tracker.data(x[1]),m.dt) .* m.inner(x), x)
+  @Flux.treelike Split
+
+  struct SplitConv
+     inner
+     dt
+     outer
+  end
+  function (m::SplitConv)(x::AbstractArray)
+      dt,inner,outer = m.dt, m.inner, m.outer
+      # println(typeof(Tracker.data(x)))
+      # println(typeof(inner(x)))
+      # println(typeof(outer(x)))
+      # println(typeof(dt*x))
+      # println(typeof(dt))
+      # println(typeof(Tracker.data(x[1])))
+      # println(typeof(oftype(Tracker.data(x[1]),dt)))
+      # println(typeof(convert(typeof(Tracker.data(x[1])), dt)))
+      # println(typeof(oftype(dt,Tracker.data(x[1])) .* inner(x)))
+      return (oftype(Tracker.data(x[1]),dt) .* inner(x), outer(x))
+  end
+  # (m::IdentitySkipConv)(x) = m.dt .* m.inner(x) .+ m.outer(x)
+  @Flux.treelike SplitConv
+
 
   function (a::Chain)(x::Any,mode)
       #mode does nothing yet, that might come later, for now it is just there to distinguish the input for chain.

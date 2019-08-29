@@ -7,6 +7,8 @@ include("./../src/NeuralNetworks.jl")
 import .LoadCustomLayers.IdentitySkip
 import .LoadCustomLayers.IdentitySkipConv
 import .LoadCustomLayers.MyDense
+import .LoadCustomLayers.Split
+import .LoadCustomLayers.SplitConv
 using .Optimization
 using Flux
 using Flux: crossentropy
@@ -19,7 +21,7 @@ using EllipsisNotation
 using .NeuralNetworks
 
 function main(logfile,α,η,epochs,n_known_of_each,io)
-  device = gpu
+  device = cpu
   debug = true
   σ = relu
   dt = 0.1
@@ -31,6 +33,7 @@ function main(logfile,α,η,epochs,n_known_of_each,io)
   ntrain = 6000
   nval = 10000
   seed_number = 1234
+  laplacelayers = [0]
 
   if debug
     Random.seed!(seed_number)
@@ -47,7 +50,8 @@ function main(logfile,α,η,epochs,n_known_of_each,io)
   nblocks = 3
   layers_pr_block = 4
   channels = [16,32,64,128]
-  [forward,resnetlayers,classify]=WideNet(nblocks,layers_pr_block,channels,dt=dt,device=device)
+  forward,resnetlayers,classify=WideNet(nblocks,layers_pr_block,channels,dt=dt,device=device)
+
 
   ps=params(forward,classify)
   loss(x,y) = sum(crossentropy(classify(forward(x)),y))
@@ -73,9 +77,12 @@ function main(logfile,α,η,epochs,n_known_of_each,io)
   @info("σ=",σ)
   @info("optimizer=",optimizer)
   @info("number of parameters = ",nparams)
+  @info("laplacelayers = ",laplacelayers)
+  @info("ResNetLayers = ",resnetlayers)
+
   flush(io)
 
-  best_epoch,loss,time_spent=Optimization.training!(forward,classify,optimizer,epochs,α,t,v,batch_size,reg_batch_size,batch_shuffle,laplace_mode,track_laplacian)
+  best_epoch,loss,time_spent=Optimization.training!(forward,classify,optimizer,epochs,α,t,v,batch_size,reg_batch_size,batch_shuffle,laplace_mode,track_laplacian,laplacelayers,resnetlayers)
 
   #This last step need to be split up in smaller batches or the mode needs to be changed to testing instead of training. Right now it runs out of memory which is why it takes forever.
   #TODO put this in a clean function that runs tests.
@@ -97,65 +104,45 @@ end
 
 #This runs the code for various cases, unfortunately it is very slow at the moment, especially the last step where it compute the forward on all the validation data takes forever.
 #I think this last problem can be partially fixed by changing the network away from training mode at the end, might be faster then.
-# epoch = 20
-# η = 0.1
-# using Logging
-# for n_known_of_each in [2, 20, 50, 100, 200, 400]
-#   for α in [0]
-#     logfile = string(α,"_",n_known_of_each,".log")
-#     io = open(logfile, "w+")
-#     logger = SimpleLogger(io)
-#     global_logger(logger)
-#     main(logfile,α,η,epoch,n_known_of_each,io)
-#     flush(io)
-#     close(io)
-#   end
-# end
+epoch = 20
+η = 0.1
+using Logging
+for n_known_of_each in [2, 20, 50, 100, 200, 400]
+  for α in [0.5]
+    logfile = string(α,"_",n_known_of_each,".log")
+    io = open(logfile, "w+")
+    logger = SimpleLogger(io)
+    global_logger(logger)
+    main(logfile,α,η,epoch,n_known_of_each,io)
+    flush(io)
+    close(io)
+  end
+end
 
 
-#
-# ch = [16, 32, 64, 128]
+# dt = 0.1
+# device = cpu
 # nblocks = 3
 # layers_pr_block = 4
-# pixels_in = 32
-# dt = 1
-# layers=[]
-# ResLayers = []
+# channels = [16,32,64,128]
+# forward,resnetlayers,classify=WideNet(nblocks,layers_pr_block,channels,dt=dt,device=device)
 #
-# push!(layers, Conv((3,3), 3=>channels[1],pad=1))
-# push!(ResLayers,0)
-# for i=1:nblocks
-#     if i == 1
-#         stride = 1
-#     else
-#         stride = 2
-#     end
-#     push!(layers, Chain(BatchNorm(ch[i], σ),IdentitySkipConv(Chain(Conv((3,3), ch[i]=>ch[i+1],pad=1,stride=stride),BatchNorm(ch[i+1], σ),Conv((3,3), ch[i+1]=>ch[i+1],pad=1)),dt,Conv((1,1), ch[i]=>ch[i+1],stride=stride))))
-#     push!(ResLayers,1)
-#     for j=2:layers_pr_block
-#         push!(layers, Chain(BatchNorm(ch[i+1], σ),IdentitySkip(Chain(Conv((3,3), ch[i+1]=>ch[i+1],pad=1),BatchNorm(ch[i+1], σ),Conv((3,3), ch[i+1]=>ch[i+1],pad=1)),dt)))
-#         push!(ResLayers,1)
-#     end
+#
+# a=Chain(x -> (x+1,x),x -> x[1]+x[2])
+# b=Chain(a,a)
+#
+# aa(2)
+#
+#
+# b[1][1:end-1](5)
+# #
+# layer1=[0]
+# layer2=Int64[]
+# isempty(layer1)
+# isempty(layer2)
+# isempty(layer1) & isempty(layer2)
+#
+#
+# if layer1
+#   println("horse")
 # end
-# pixels_out = Int(pixels_in/(2)^(nblocks-1))
-# push!(layers, Chain(BatchNorm(ch[end], σ),MeanPool((pixels_out,pixels_out)),x -> dropdims(x,dims=(1,2))))
-# push!(ResLayers, 0)
-# function buildstring(layers)
-#   layerstring = ""
-#   for i=1:length(layers)
-#       if i==length(layers)
-#           layerstring = layerstring * "layers[" * string(i) * "]"
-#       else
-#           layerstring = layerstring * "layers[" * string(i) * "],"
-#       end
-#   end
-#   return layerstring
-# end
-# layerstring=buildstring(layers)
-# forward = eval(:(Chain(layerstring)))
-dt = 0.1
-device = cpu
-nblocks = 3
-layers_pr_block = 4
-channels = [16,32,64,128]
-forward,resnetlayers,classify=WideNet(nblocks,layers_pr_block,channels,dt=dt,device=device)

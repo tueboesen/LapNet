@@ -17,6 +17,16 @@ module Regularization
         return L
     end
 
+    function Laplacian(x,laplacelayers::Vector{<: Int} ;track=true)
+        L=[] #TODO update its type
+        for i=1:length(laplacelayers)
+            A,ϵ = AdjacencyMatrix(x[i],track=track)
+            Li = GraphLaplacian(x[i],A,ϵ,track=track)
+            push!(L,Li)
+        end
+        return L
+    end
+
     function Laplacian(x;track=true)
         # println(typeof(x[end]))
         A,ϵ   = AdjacencyMatrix(x[end],track=track)
@@ -55,6 +65,17 @@ module Regularization
       return A, di
     end
 
+    function SetLaplaceLayers(laplace_mode)
+        if laplace_mode == 0 #Input laplacian
+            laplacelayers = [0]
+        elseif laplace_mode == 1 #Just before classification laplacian
+
+        elseif laplace_mode == 2 #Interpolated laplacian
+
+        elseif laplace_mode == 3 #Full laplacian
+
+        end
+    end
 
 
     function GraphLaplacian_(X,A,ϵ)
@@ -96,6 +117,38 @@ module Regularization
             reg += tr(layer_flat*L0*transpose(layer_flat))
         end
         return reg
+    end
+
+    function Compute_Regularization(vl,L,resnetlayers,laplacelayers)
+      reg = 0
+      n = size(L[1],1)
+      for (i,layeridx) in enumerate(resnetlayers)
+        layer = vl[i]
+        layer_flat=reshape(layer, :,n)
+        if i in laplacelayers
+          laplaceidx = findfirst(isequal(i),laplacelayers)
+          Li = L[laplaceidx]
+        else
+          layers1 = [t for t in laplacelayers if t < i]
+          layers2 = [t for t in laplacelayers if t > i]
+          if !isempty(layers1) & !isempty(layers2)
+            layer1 = maximum(layers1)
+            layer2 = minimum(layers2)
+            nl = layer2 - layer1
+            Li = L[findfirst(isequal(layer1),laplacelayers)] * (nl-(i-layer1))/nl +  L[findfirst(isequal(layer2),laplacelayers)] * (nl-(layer2-i))/nl
+          elseif !isempty(layers1)
+            layer = maximum(layers1)
+            Li = L[findfirst(isequal(layer),laplacelayers)]
+          elseif !isempty(layers2)
+            layer = minimum(layers2)
+            Li = L[findfirst(isequal(layer),laplacelayers)]
+          else
+            error("no fitting laplace layer was found, this shouldn't happen")
+          end
+        end
+        reg += tr(layer_flat*Li*transpose(layer_flat))
+      end
+      return reg
     end
 
     function Compute_Regularization(yl,L0,Ln)
